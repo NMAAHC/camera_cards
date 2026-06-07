@@ -258,7 +258,7 @@ _make_inventory(){
                 _catalog_video "${FILE}"
                 ((VIDEO_NUM++))
                 ((FILE_NUM++))
-            done < <(find "${CARD}"! -name ".DS_Store"  -iname "*.${EXTENSION}" ! -path "*/PROAV/*" ! -path "*/Sub/*" -type f "${FIND_OPTS[@]}" | sort)
+            done < <(find "${CARD}" ! -name ".DS_Store"  -iname "*.${EXTENSION}" ! -path "*/PROAV/*" ! -path "*/Sub/*" -type f "${FIND_OPTS[@]}" | sort)
         elif [[ "${CAMERA_CARD_TYPE}" ==  "MXF" ]] ; then
             if [[ "${RECURSIVE}" != "Y" ]] ; then
                 FIND_OPTS+=(-maxdepth 1)
