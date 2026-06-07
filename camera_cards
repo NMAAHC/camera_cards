@@ -461,7 +461,7 @@ while getopts ":m:N:o:f:F:ctarns:k:p:1h" OPT; do
     esac
 done
 shift $(( OPTIND - 1 ))
-
+FFMPEG_ERRORS=0
 trap _cleanup SIGHUP SIGINT SIGTERM # "termination signals" that ask the system to clean up and safely kill the ongoing process, with increasing urgency
 
 # check for unassigned variables
