@@ -3,7 +3,7 @@
 # a script to turn raw camera cards into SIPs
 
 # set script variables
-DEPENDENCIES=(ffmpeg md5sum tree mediaconch exiftool ffprobe)
+DEPENDENCIES=(ffmpeg md5sum tree mediaconch exiftool ffprobe mediainfo)
 OP="${USER}"
 AIP="YES"
 TAR="NO"
