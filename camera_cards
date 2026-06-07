@@ -269,6 +269,15 @@ _make_inventory(){
                 ((VIDEO_NUM++))
                 ((FILE_NUM++))
             done < <(find "${CARD}" ! -name ".DS_Store" -iname "*.${EXTENSION}" -type f "${FIND_OPTS[@]}" | sort)
+        elif [[ "${CAMERA_CARD_TYPE}" == "AVCHD" ]] ; then
+            if [[ "${RECURSIVE}" != "Y" ]] ; then
+                FIND_OPTS+=(-maxdepth 1)
+            fi
+            while read -r FILE ; do
+                _catalog_video "${FILE}"
+                ((VIDEO_NUM++))
+                ((FILE_NUM++))
+            done < <(find "${AVCHD_BASE_DIR}/STREAM" ! -name ".DS_Store" -iname "*.${EXTENSION}" -type f "${FIND_OPTS[@]}" | sort)
         else
             if [[ "${RECURSIVE}" != "Y" ]] ; then
                 FIND_OPTS+=(-maxdepth 1)
@@ -346,7 +355,7 @@ _identify_card_type(){
     if [[ -n "$(find "${CARD}" -type d -iname "BDMV" | head -n 1)" ]] ; then
         _report -g "Camera card type identified: ${CARD_NAME} is AVCHD (e.g. Canon C100)"
         CAMERA_CARD_TYPE="AVCHD"
-        CAMERA_CARD_DIR="$(find "${CAMERA_CARD_DIR[0]}" -type d -iname "BDMV" | head -n 1)" # set CAMERA_CARD_DIR path to the standard AVCHD directory structure
+        AVCHD_BASE_DIR="$(find "${CARD}" -type d -iname "BDMV" | head -n 1)" # set CAMERA_CARD_DIR path to the standard AVCHD directory structure
         EXTENSION="mts"
         RSYNC_OPTIONS=(-iname "*.cpi")
     elif [[ -n "$(find "${CARD}" -type d -iname "CLIPS001")" ]] ; then
