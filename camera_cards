@@ -278,7 +278,7 @@ _make_inventory(){
                 ((FILE_NUM++))
             done < <(find "${CARD}" ! -name ".DS_Store" -iname "*.${EXTENSION}" -type f "${FIND_OPTS[@]}" | sort)
         fi
-        if [[ -n "${RSYNC_OPTIONS[@]}" ]] ; then
+        if [[ "${#RSYNC_OPTIONS[@]}" -gt 0 ]] ; then
             while read FILE ; do
                 if [[ -z "$(grep ",${FILE}," "${FILE_INVENTORY}")" ]] ; then
                     echo "${CARD_NUM},${CAMERA_CARD_TYPE},0,${FILE_NUM},$(_lookup_associated_video_file),metadata,,,,,,${FILE},," >> "${FILE_INVENTORY}"
