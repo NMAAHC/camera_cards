@@ -813,7 +813,9 @@ if [[ "${TAR}" == "YES" ]] ; then
     ## tar supplied input directory
     echo
     _report -g "Creating tar archive..."
-    tar -czvf "${AIPDIR_TAR}/${MEDIAID}.tar.gz" -C "${CAMERA_CARD_DIR}" .
+    for CARD in "${CAMERA_CARD_DIR[@]}" ; do
+        tar -czvf "${AIPDIR_TAR}/$(basename "${CARD}").tar.gz" -C "${CARD}" .
+    done
     _write_package_log "TAR ARCHIVE" "${MEDIAID}.tar.gz"
 
     ## generate checksum for tar archive
