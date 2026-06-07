@@ -818,13 +818,14 @@ if [[ "${TAR}" == "YES" ]] ; then
     echo
     _report -g "Creating tar archive..."
     for CARD in "${CAMERA_CARD_DIR[@]}" ; do
-        tar -czvf "${AIPDIR_TAR}/$(basename "${CARD}").tar.gz" -C "${CARD}" .
+        CARD_BASENAME="$(basename "${CARD}")"
+        TAR_NAME="${CARD_BASENAME}.tar.gz"
+        TAR_MD5_OUTPUT="${METADATA_REPORTS_DIR}/${CARD_BASENAME}.md5"
+        tar -czvf "${AIPDIR_TAR}/${TAR_NAME}" -C "${CARD}" .
+        md5sum "${AIPDIR_TAR}/${TAR_NAME}" > "${TAR_MD5_OUTPUT}"
+        _write_package_log "TAR ARCHIVE" "${TAR_NAME}"
+        _write_package_log "TAR MD5" "${TAR_MD5_OUTPUT}"
     done
-    _write_package_log "TAR ARCHIVE" "${MEDIAID}.tar.gz"
-
-    ## generate checksum for tar archive
-    TAR_MD5_OUTPUT="${METADATA_REPORTS_DIR}/${MEDIAID}.md5"
-    md5sum "${AIPDIR_TAR}/${MEDIAID}.tar.gz" > "${TAR_MD5_OUTPUT}"
 fi
 
 # record variables in ingest log
