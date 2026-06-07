@@ -220,6 +220,7 @@ _make_inventory(){
     VIDEO_NUM=1
     FILE_NUM=1
     for CARD in "${CAMERA_CARD_DIR[@]}" ; do
+        unset FIND_OPTS
         _identify_card_type "${CARD}"
         if [[ "${CAMERA_CARD_TYPE}" == "P2" ]] ; then
             if [[ "${RECURSIVE}" != "Y" ]] ; then
