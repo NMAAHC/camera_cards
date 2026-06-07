@@ -188,7 +188,7 @@ _read_inventory(){
         COL_NUM="$(head -n1 "${FILE_INVENTORY}" | awk -v RS=',' "/${COL_NAME}/{print NR; exit}")"
         if [[ -n "${COL_NAME}" ]] ; then
             if [[ -z "${COL_NUM}" ]] ; then
-                _report -w "The _read_inventory function was called to find a column called ${COL_NAME} but it isn't found in the inventory."
+                _report -r "The _read_inventory function was called to find a column called ${COL_NAME} but it isn't found in the inventory."
             fi
             if [[ -n "${FILTER}" ]] ; then
                 echo "${FILTERED_LIST}" | grep "$FILTER" | cut -d "," -f "${COL_NUM}"
@@ -199,7 +199,7 @@ _read_inventory(){
             echo "${FILTERED_LIST}" | grep "$FILTER"
         fi
     else
-        _report -w "The _read_inventory function was called but there's no inventory at ${FILE_INVENTORY}."
+        _report -r "The _read_inventory function was called but there's no inventory at ${FILE_INVENTORY}."
     fi
 }
 
