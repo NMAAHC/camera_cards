@@ -817,7 +817,7 @@ _write_package_log "CAMERA CARD DIRECTORY" "${CAMERA_CARD_DIR[@]}"
 _write_package_log "MEDIAID" "${MEDIAID}"
 _write_package_log "OUTPUT DIRECTORY" "${AIPDIR}"
 _write_package_log "CAMERA CARD TYPE" "${CAMERA_CARD_TYPE}"
-_write_package_log "STRATEGY" "${STRATEGY}"
+_write_package_log "AUDIO_STRATEGY" "${AUDIO_STRATEGY}"
 _write_package_log "START TIME" "${START_TIME}"
 
 # error reporting
