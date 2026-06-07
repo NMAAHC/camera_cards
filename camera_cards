@@ -657,7 +657,7 @@ if [[ "${AIP}" == "YES" ]] ; then
             while [[ "${IMAGENUMBER}" -lt "${IMAGECOUNT}" ]] ; do
                 START="0$(echo "scale=2; ( ${DURATION} / ( ${IMAGECOUNT} + 1 )) * ${IMAGENUMBER_PER_FILE}" | bc)"
                 START_ALT="$(_smmm_to_hhmmssff "${START}")"
-                _report -d "For $(basename "${FILE_NAME}") making frame ${IMAGENUMBER} of ${IMAGECOUNT}  - dur:${DURATION_ALT} start:${START_ALT}"
+                _report -g "For $(basename "${FILE_NAME}") making frame ${IMAGENUMBER} of ${IMAGECOUNT}  - dur:${DURATION_ALT} start:${START_ALT}"
                 INPUTCLIP4IMAGE+=(-ss "$START" -i "${FILE_NAME}")
                 INPUTCLIP4IMAGEFILTER+="[${IMAGENUMBER}:v]"
                 ((IMAGENUMBER++))
