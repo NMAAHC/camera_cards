@@ -469,7 +469,7 @@ CAMERA_CARD_DIR=("${@}")
 # ask for camera card if it wasn't supplied
 if [[ -z "${CAMERA_CARD_DIR[0]}" ]] ; then
     _report -b "Drag in the input directory or type 'q' to quit: "
-    read -e CAMERA_CARD_DIR
+    read -e -a CAMERA_CARD_DIR
     [[ "${CAMERA_CARD_DIR}" = "q" ]] && exit 0
 fi
 # check that each camera card is a directory
