@@ -475,7 +475,7 @@ fi
 # check that each camera card is a directory
 for CARD_DIR in "${CAMERA_CARD_DIR[@]}" ; do
     if [[ ! -d "${CARD_DIR}" ]] ; then
-        _report -rt "ERROR: Input directory ${CAMERA_CARD_DIR} is not a directory. Exiting..."
+        _report -rt "ERROR: Input directory ${CARD_DIR} is not a directory. Exiting..."
         exit 1
     fi
 done
