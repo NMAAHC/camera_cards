@@ -3,7 +3,7 @@
 # a script to turn raw camera cards into SIPs
 
 # set script variables
-DEPENDENCIES=(ffmpeg md5sum tree mediaconch exiftool ffprobe)
+DEPENDENCIES=(ffmpeg md5sum tree mediaconch exiftool ffprobe mediainfo)
 OP="${USER}"
 AIP="YES"
 TAR="NO"
@@ -188,7 +188,7 @@ _read_inventory(){
         COL_NUM="$(head -n1 "${FILE_INVENTORY}" | awk -v RS=',' "/${COL_NAME}/{print NR; exit}")"
         if [[ -n "${COL_NAME}" ]] ; then
             if [[ -z "${COL_NUM}" ]] ; then
-                _report -w "The _read_inventory function was called to find a column called ${COL_NAME} but it isn't found in the inventory."
+                _report -r "The _read_inventory function was called to find a column called ${COL_NAME} but it isn't found in the inventory."
             fi
             if [[ -n "${FILTER}" ]] ; then
                 echo "${FILTERED_LIST}" | grep "$FILTER" | cut -d "," -f "${COL_NUM}"
@@ -199,7 +199,7 @@ _read_inventory(){
             echo "${FILTERED_LIST}" | grep "$FILTER"
         fi
     else
-        _report -w "The _read_inventory function was called but there's no inventory at ${FILE_INVENTORY}."
+        _report -r "The _read_inventory function was called but there's no inventory at ${FILE_INVENTORY}."
     fi
 }
 
@@ -220,6 +220,7 @@ _make_inventory(){
     VIDEO_NUM=1
     FILE_NUM=1
     for CARD in "${CAMERA_CARD_DIR[@]}" ; do
+        unset FIND_OPTS
         _identify_card_type "${CARD}"
         if [[ "${CAMERA_CARD_TYPE}" == "P2" ]] ; then
             if [[ "${RECURSIVE}" != "Y" ]] ; then
@@ -258,7 +259,7 @@ _make_inventory(){
                 _catalog_video "${FILE}"
                 ((VIDEO_NUM++))
                 ((FILE_NUM++))
-            done < <(find "${CARD}"! -name ".DS_Store"  -iname "*.${EXTENSION}" ! -path "*/PROAV/*" ! -path "*/Sub/*" -type f "${FIND_OPTS[@]}" | sort)
+            done < <(find "${CARD}" ! -name ".DS_Store"  -iname "*.${EXTENSION}" ! -path "*/PROAV/*" ! -path "*/Sub/*" -type f "${FIND_OPTS[@]}" | sort)
         elif [[ "${CAMERA_CARD_TYPE}" ==  "MXF" ]] ; then
             if [[ "${RECURSIVE}" != "Y" ]] ; then
                 FIND_OPTS+=(-maxdepth 1)
@@ -268,6 +269,15 @@ _make_inventory(){
                 ((VIDEO_NUM++))
                 ((FILE_NUM++))
             done < <(find "${CARD}" ! -name ".DS_Store" -iname "*.${EXTENSION}" -type f "${FIND_OPTS[@]}" | sort)
+        elif [[ "${CAMERA_CARD_TYPE}" == "AVCHD" ]] ; then
+            if [[ "${RECURSIVE}" != "Y" ]] ; then
+                FIND_OPTS+=(-maxdepth 1)
+            fi
+            while read -r FILE ; do
+                _catalog_video "${FILE}"
+                ((VIDEO_NUM++))
+                ((FILE_NUM++))
+            done < <(find "${AVCHD_BASE_DIR}/STREAM" ! -name ".DS_Store" -iname "*.${EXTENSION}" -type f "${FIND_OPTS[@]}" | sort)
         else
             if [[ "${RECURSIVE}" != "Y" ]] ; then
                 FIND_OPTS+=(-maxdepth 1)
@@ -278,7 +288,7 @@ _make_inventory(){
                 ((FILE_NUM++))
             done < <(find "${CARD}" ! -name ".DS_Store" -iname "*.${EXTENSION}" -type f "${FIND_OPTS[@]}" | sort)
         fi
-        if [[ -n "${RSYNC_OPTIONS[@]}" ]] ; then
+        if [[ "${#RSYNC_OPTIONS[@]}" -gt 0 ]] ; then
             while read FILE ; do
                 if [[ -z "$(grep ",${FILE}," "${FILE_INVENTORY}")" ]] ; then
                     echo "${CARD_NUM},${CAMERA_CARD_TYPE},0,${FILE_NUM},$(_lookup_associated_video_file),metadata,,,,,,${FILE},," >> "${FILE_INVENTORY}"
@@ -345,7 +355,7 @@ _identify_card_type(){
     if [[ -n "$(find "${CARD}" -type d -iname "BDMV" | head -n 1)" ]] ; then
         _report -g "Camera card type identified: ${CARD_NAME} is AVCHD (e.g. Canon C100)"
         CAMERA_CARD_TYPE="AVCHD"
-        CAMERA_CARD_DIR="$(find "${CAMERA_CARD_DIR[0]}" -type d -iname "BDMV" | head -n 1)" # set CAMERA_CARD_DIR path to the standard AVCHD directory structure
+        AVCHD_BASE_DIR="$(find "${CARD}" -type d -iname "BDMV" | head -n 1)" # set CAMERA_CARD_DIR path to the standard AVCHD directory structure
         EXTENSION="mts"
         RSYNC_OPTIONS=(-iname "*.cpi")
     elif [[ -n "$(find "${CARD}" -type d -iname "CLIPS001")" ]] ; then
@@ -461,7 +471,7 @@ while getopts ":m:N:o:f:F:ctarns:k:p:1h" OPT; do
     esac
 done
 shift $(( OPTIND - 1 ))
-
+FFMPEG_ERRORS=0
 trap _cleanup SIGHUP SIGINT SIGTERM # "termination signals" that ask the system to clean up and safely kill the ongoing process, with increasing urgency
 
 # check for unassigned variables
@@ -469,13 +479,13 @@ CAMERA_CARD_DIR=("${@}")
 # ask for camera card if it wasn't supplied
 if [[ -z "${CAMERA_CARD_DIR[0]}" ]] ; then
     _report -b "Drag in the input directory or type 'q' to quit: "
-    read -e CAMERA_CARD_DIR
+    read -e -a CAMERA_CARD_DIR
     [[ "${CAMERA_CARD_DIR}" = "q" ]] && exit 0
 fi
 # check that each camera card is a directory
 for CARD_DIR in "${CAMERA_CARD_DIR[@]}" ; do
     if [[ ! -d "${CARD_DIR}" ]] ; then
-        _report -rt "ERROR: Input directory ${CAMERA_CARD_DIR} is not a directory. Exiting..."
+        _report -rt "ERROR: Input directory ${CARD_DIR} is not a directory. Exiting..."
         exit 1
     fi
 done
@@ -647,7 +657,7 @@ if [[ "${AIP}" == "YES" ]] ; then
             while [[ "${IMAGENUMBER}" -lt "${IMAGECOUNT}" ]] ; do
                 START="0$(echo "scale=2; ( ${DURATION} / ( ${IMAGECOUNT} + 1 )) * ${IMAGENUMBER_PER_FILE}" | bc)"
                 START_ALT="$(_smmm_to_hhmmssff "${START}")"
-                _report -d "For $(basename "${FILE_NAME}") making frame ${IMAGENUMBER} of ${IMAGECOUNT}  - dur:${DURATION_ALT} start:${START_ALT}"
+                _report -g "For $(basename "${FILE_NAME}") making frame ${IMAGENUMBER} of ${IMAGECOUNT}  - dur:${DURATION_ALT} start:${START_ALT}"
                 INPUTCLIP4IMAGE+=(-ss "$START" -i "${FILE_NAME}")
                 INPUTCLIP4IMAGEFILTER+="[${IMAGENUMBER}:v]"
                 ((IMAGENUMBER++))
@@ -706,6 +716,7 @@ if [[ "${AIP}" == "YES" ]] ; then
         DECODER_LOG="${METADATA_REPORTS_DIR}/$(basename "${CONCATENATED_VIDEO_FILE%.*}")_decoder_log.txt"
         STREAMHASH="${METADATA_REPORTS_DIR}/$(basename "${CONCATENATED_VIDEO_FILE%.*}")_streamhash.md5"
         "${FFMPEG_PATH}" -nostdin -debug_ts -f concat -safe 0 -i "${TEMP_CONCATLIST}" -map 0 -c copy -f streamhash -hash md5 "${MIDDLE_OPTIONS_ALL[@]}" "${STREAMHASH}" 2> "${DECODER_LOG}"
+        FFMPEG_EXIT_CODE="${?}"
 
         # decode error summary
         FIRST_VIDEO_FILE="$(_read_inventory -f ",video," "FILE_NAME" | head -n 1)"
@@ -727,7 +738,6 @@ if [[ "${AIP}" == "YES" ]] ; then
         fi
 
         # tests for video file existing
-        FFMPEG_EXIT_CODE="${?}"
         if [[ ! -s "${CONCATENATED_VIDEO_FILE}" ]] ; then
             ((FFMPEG_ERRORS++))
         fi
@@ -752,7 +762,11 @@ if [[ "${AIP}" == "YES" ]] ; then
         # check that video and audio file durations match
         VIDEO_DURATION=$(mediainfo --Inform="Video;%Duration%" "${CONCATENATED_VIDEO_FILE}")
         AUDIO_DURATION=$(mediainfo --Inform="Audio;%Duration%" "${CONCATENATED_AUDIO_FILE}")
-        if [[ "${VIDEO_DURATION}" -ne "${AUDIO_DURATION}" ]] ; then
+        if [[ -z "${VIDEO_DURATION}" ]] ; then
+            _report -r "Could not read video duration from ${CONCATENATED_VIDEO_FILE}. Please review file."
+        elif [[ -z "${AUDIO_DURATION}" ]] ; then
+            _report -r "Could not read audio duration from ${CONCATENATED_AUDIO_FILE}. Please review file."
+        elif [[ "${VIDEO_DURATION}" -ne "${AUDIO_DURATION}" ]] ; then
             _report -r "Audio and video files are not the same length! Review output for sync. (Video duration = ${VIDEO_DURATION}, audio duration = ${AUDIO_DURATION})"
         fi
         # rename concatenated video file to avoid collision with audio file
@@ -803,12 +817,15 @@ if [[ "${TAR}" == "YES" ]] ; then
     ## tar supplied input directory
     echo
     _report -g "Creating tar archive..."
-    tar -czvf "${AIPDIR_TAR}/${MEDIAID}.tar.gz" -C "${CAMERA_CARD_DIR}" .
-    _write_package_log "TAR ARCHIVE" "${MEDIAID}.tar.gz"
-
-    ## generate checksum for tar archive
-    TAR_MD5_OUTPUT="${METADATA_REPORTS_DIR}/${MEDIAID}.md5"
-    md5sum "${AIPDIR_TAR}/${MEDIAID}.tar.gz" > "${TAR_MD5_OUTPUT}"
+    for CARD in "${CAMERA_CARD_DIR[@]}" ; do
+        CARD_BASENAME="$(basename "${CARD}")"
+        TAR_NAME="${CARD_BASENAME}.tar.gz"
+        TAR_MD5_OUTPUT="${METADATA_REPORTS_DIR}/${CARD_BASENAME}.md5"
+        tar -czvf "${AIPDIR_TAR}/${TAR_NAME}" -C "${CARD}" .
+        md5sum "${AIPDIR_TAR}/${TAR_NAME}" > "${TAR_MD5_OUTPUT}"
+        _write_package_log "TAR ARCHIVE" "${TAR_NAME}"
+        _write_package_log "TAR MD5" "${TAR_MD5_OUTPUT}"
+    done
 fi
 
 # record variables in ingest log
@@ -817,7 +834,7 @@ _write_package_log "CAMERA CARD DIRECTORY" "${CAMERA_CARD_DIR[@]}"
 _write_package_log "MEDIAID" "${MEDIAID}"
 _write_package_log "OUTPUT DIRECTORY" "${AIPDIR}"
 _write_package_log "CAMERA CARD TYPE" "${CAMERA_CARD_TYPE}"
-_write_package_log "STRATEGY" "${STRATEGY}"
+_write_package_log "AUDIO_STRATEGY" "${AUDIO_STRATEGY}"
 _write_package_log "START TIME" "${START_TIME}"
 
 # error reporting
@@ -832,9 +849,15 @@ if [[ "${SINGLE_OUTPUT}" != "Y" ]] ; then
     else
         _report -g "FFmpeg exit codes look ok"
         if [[ -s "${CONCATENATED_AUDIO_FILE}" ]] ; then
-            if [[ "${VIDEO_DURATION}" -ne "${AUDIO_DURATION}" ]] ; then
-            _report -r "Concatenated audio and video files were not the same length - review final merged file for sync at ${CONCATENATED_FILE_MERGED} (video duration = ${VIDEO_DURATION}, audio duration = ${AUDIO_DURATION})"
-            _write_package_log "POSSIBLE_ERROR_REVIEW" "Concatenated audio and video files were not the same length"
+            if [[ -z "${VIDEO_DURATION}" ]] ; then
+                _report -r "Could not read video duration from concatenated video file. Please review output."
+                _write_package_log "POSSIBLE_ERROR_REVIEW" "Could not read video duration"
+            elif [[ -z "${AUDIO_DURATION}" ]] ; then
+                _report -r "Could not read audio duration from concatenated audio file. Please review output."
+                _write_package_log "POSSIBLE_ERROR_REVIEW" "Could not read audio duration"
+            elif [[ "${VIDEO_DURATION}" -ne "${AUDIO_DURATION}" ]] ; then
+                _report -r "Concatenated audio and video files were not the same length - review final merged file for sync at ${CONCATENATED_FILE_MERGED} (video duration = ${VIDEO_DURATION}, audio duration = ${AUDIO_DURATION})"
+                _write_package_log "POSSIBLE_ERROR_REVIEW" "Concatenated audio and video files were not the same length"
             else
                 _report -g "Concatenated audio and video process looks ok"
             fi
