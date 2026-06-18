@@ -868,14 +868,33 @@ if [[ "${SINGLE_OUTPUT}" != "Y" ]] ; then
             fi
         fi
         if [[ "${AIP}" == "YES" ]] ; then # check for losslessness of concatenated file by comparing bitstream md5s
+            CHECK_FILE="${RENAMED_CONCATENATED_VIDEO_FILE:-${CONCATENATED_VIDEO_FILE}}"
+            if [[ "${CAMERA_CARD_TYPE}" == "XAVC" ]] ; then
+                # xavc (h264-in-mxf) includes sps/pps nals into each keyframe packet, but mkv stores them in the container header and strips them from packets.
+                # bitstream streamhash will always differ on mxf→mkv h264 transwrap regardless of losslessness, so in that case we'll use decoded framemd5 for video instead.
+                _report -b "XAVC: using decoded framemd5 for video lossless check (MXF→MKV NAL repackaging makes bitstream streamhash unreliable)..."
+                INPUT_FRAMEMD5="$(_maketemp).framemd5"
+                OUTPUT_FRAMEMD5="$(_maketemp).framemd5"
+                "${FFMPEG_PATH}" -nostdin -loglevel quiet -f concat -safe 0 -i "${TEMP_CONCATLIST}" -map 0:v -f framemd5 "${INPUT_FRAMEMD5}" 2>/dev/null
+                "${FFMPEG_PATH}" -nostdin -loglevel quiet -i "${CHECK_FILE}" -map 0:v -f framemd5 "${OUTPUT_FRAMEMD5}" 2>/dev/null
+                if diff -q <(grep -v '^#' "${INPUT_FRAMEMD5}") <(grep -v '^#' "${OUTPUT_FRAMEMD5}") > /dev/null && \
+                   diff -q <(grep '^[0-9]*,a,' "${STREAMHASH}") <(grep '^[0-9]*,a,' <("${FFMPEG_PATH}" -nostdin -loglevel quiet -i "${CHECK_FILE}" "${MAP_OPTIONS[@]}" -c copy -f streamhash -hash md5 "${MIDDLE_OPTIONS_ALL[@]}" - 2>/dev/null)) > /dev/null ; then
+                    _report -g "Concatenated process looks lossless"
+                else
+                    _report -r "Concatenation process was not lossless! Review final merged file at ${CHECK_FILE}"
+                    _write_package_log "POSSIBLE_ERROR_REVIEW" "Concatenation process was not lossless based on decoded framemd5"
+                fi
+            else
+                # non-xavc: bitstream streamhash comparison is valid
             OUTPUT_STREAMHASH="$(_maketemp)"
             _report -b "Checking streamhash between input and output..."
-            "${FFMPEG_PATH}" -nostdin -y -loglevel quiet -report -i "${CONCATENATED_VIDEO_FILE}" "${MAP_OPTIONS[@]}" -c copy -f streamhash -hash md5 "${MIDDLE_OPTIONS_ALL[@]}" "${OUTPUT_STREAMHASH}"
+            "${FFMPEG_PATH}" -nostdin -y -loglevel quiet -report -i "${CHECK_FILE}" "${MAP_OPTIONS[@]}" -c copy -f streamhash -hash md5 "${MIDDLE_OPTIONS_ALL[@]}" "${OUTPUT_STREAMHASH}"
             if [[ $(cat "${STREAMHASH}") != $(cat "${OUTPUT_STREAMHASH}") ]] ; then
-                _report -r "Concatenation process was not lossless! Review final merged file at ${CONCATENATED_VIDEO_FILE}"
+                _report -r "Concatenation process was not lossless! Review final merged file at ${CHECK_FILE}"
                 _write_package_log "POSSIBLE_ERROR_REVIEW" "Concatenation process was not lossless based on bitstream md5s"
             else
                 _report -g "Concatenated process looks lossless"
+            fi
             fi
         fi
     fi
