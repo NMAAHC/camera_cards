@@ -708,7 +708,12 @@ if [[ "${AIP}" == "YES" ]] ; then
         "${FFMPEG_PATH}" -nostdin -y "${INPUT4IMAGE[@]}" "${MIDDLE_OPTIONS[@]}" "${CONCATENATED_VIDEO_FILE}"
         exit
     else
-    "${FFMPEG_PATH}" -nostdin -f concat -safe 0 -i "${TEMP_CONCATLIST}" -i "${FIRST_FILE}" -map 0 -map_metadata 1 "${MIDDLE_OPTIONS_ALL[@]}" "${MIDDLE_OPTIONS[@]}" "${AUDIO_STRATEGY[@]}" "${CONCATENATED_VIDEO_FILE}"
+        if [[ "${OUTPUT_EXTENSION}" == "mkv" ]] ; then
+            MAP_OPTIONS=(-map 0:v -map 0:a? -map 0:s?)
+        else
+            MAP_OPTIONS=(-map 0)
+        fi
+        "${FFMPEG_PATH}" -nostdin -f concat -safe 0 -i "${TEMP_CONCATLIST}" -i "${FIRST_FILE}" "${MAP_OPTIONS[@]}" -map_metadata 1 "${MIDDLE_OPTIONS_ALL[@]}" "${MIDDLE_OPTIONS[@]}" "${AUDIO_STRATEGY[@]}" "${CONCATENATED_VIDEO_FILE}"
     fi
     # calculate md5 for each stream in the file
     if [[ "${SINGLE_OUTPUT}" != "Y" ]] ; then
