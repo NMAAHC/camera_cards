@@ -886,15 +886,15 @@ if [[ "${SINGLE_OUTPUT}" != "Y" ]] ; then
                 fi
             else
                 # non-xavc: bitstream streamhash comparison is valid
-            OUTPUT_STREAMHASH="$(_maketemp)"
-            _report -b "Checking streamhash between input and output..."
-            "${FFMPEG_PATH}" -nostdin -y -loglevel quiet -report -i "${CHECK_FILE}" "${MAP_OPTIONS[@]}" -c copy -f streamhash -hash md5 "${MIDDLE_OPTIONS_ALL[@]}" "${OUTPUT_STREAMHASH}"
-            if [[ $(cat "${STREAMHASH}") != $(cat "${OUTPUT_STREAMHASH}") ]] ; then
-                _report -r "Concatenation process was not lossless! Review final merged file at ${CHECK_FILE}"
-                _write_package_log "POSSIBLE_ERROR_REVIEW" "Concatenation process was not lossless based on bitstream md5s"
-            else
-                _report -g "Concatenated process looks lossless"
-            fi
+                OUTPUT_STREAMHASH="$(_maketemp)"
+                _report -b "Checking streamhash between input and output..."
+                "${FFMPEG_PATH}" -nostdin -y -loglevel quiet -report -i "${CHECK_FILE}" "${MAP_OPTIONS[@]}" -c copy -f streamhash -hash md5 "${MIDDLE_OPTIONS_ALL[@]}" "${OUTPUT_STREAMHASH}"
+                if [[ $(cat "${STREAMHASH}") != $(cat "${OUTPUT_STREAMHASH}") ]] ; then
+                    _report -r "Concatenation process was not lossless! Review final merged file at ${CHECK_FILE}"
+                    _write_package_log "POSSIBLE_ERROR_REVIEW" "Concatenation process was not lossless based on bitstream md5s"
+                else
+                    _report -g "Concatenated process looks lossless"
+                fi
             fi
         fi
     fi
