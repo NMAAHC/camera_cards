@@ -709,7 +709,7 @@ if [[ "${AIP}" == "YES" ]] ; then
         exit
     else
         if [[ "${OUTPUT_EXTENSION}" == "mkv" ]] ; then
-            MAP_OPTIONS=(-map 0:v -map 0:a? -map 0:s?)
+            MAP_OPTIONS=(-map 0:v? -map 0:a? -map 0:s?)
         else
             MAP_OPTIONS=(-map 0)
         fi
@@ -720,7 +720,7 @@ if [[ "${AIP}" == "YES" ]] ; then
         _report -b "Calculating streamhash and checking input for errors."
         DECODER_LOG="${METADATA_REPORTS_DIR}/$(basename "${CONCATENATED_VIDEO_FILE%.*}")_decoder_log.txt"
         STREAMHASH="${METADATA_REPORTS_DIR}/$(basename "${CONCATENATED_VIDEO_FILE%.*}")_streamhash.md5"
-        "${FFMPEG_PATH}" -nostdin -debug_ts -f concat -safe 0 -i "${TEMP_CONCATLIST}" -map 0 -c copy -f streamhash -hash md5 "${MIDDLE_OPTIONS_ALL[@]}" "${STREAMHASH}" 2> "${DECODER_LOG}"
+        "${FFMPEG_PATH}" -nostdin -debug_ts -f concat -safe 0 -i "${TEMP_CONCATLIST}" "${MAP_OPTIONS[@]}" -c copy -f streamhash -hash md5 "${MIDDLE_OPTIONS_ALL[@]}" "${STREAMHASH}" 2> "${DECODER_LOG}"
         FFMPEG_EXIT_CODE="${?}"
 
         # decode error summary
@@ -759,7 +759,7 @@ if [[ "${AIP}" == "YES" ]] ; then
         while read FILE ; do
             echo "file '${FILE}'" >> "${TEMP_CONCATLIST}"
         done < <(_read_inventory -f ",audio," "FILE_NAME")
-        "${FFMPEG_PATH}" -nostdin -f concat -safe 0 -i "${TEMP_CONCATLIST}" -i "${FIRST_FILE}" -map 0 -map_metadata 1 -c copy "${MIDDLE_OPTIONS_ALL[@]}" "${CONCATENATED_AUDIO_FILE}"
+        "${FFMPEG_PATH}" -nostdin -f concat -safe 0 -i "${TEMP_CONCATLIST}" -i "${FIRST_FILE}" "${MAP_OPTIONS[@]}" -map_metadata 1 -c copy "${MIDDLE_OPTIONS_ALL[@]}" "${CONCATENATED_AUDIO_FILE}"
         _write_package_log "CONCATENATED AUDIO FILE" "${CONCATENATED_AUDIO_FILE}"
 
         # merge video and audio
@@ -870,7 +870,7 @@ if [[ "${SINGLE_OUTPUT}" != "Y" ]] ; then
         if [[ "${AIP}" == "YES" ]] ; then # check for losslessness of concatenated file by comparing bitstream md5s
             OUTPUT_STREAMHASH="$(_maketemp)"
             _report -b "Checking streamhash between input and output..."
-            "${FFMPEG_PATH}" -nostdin -y -loglevel quiet -report -i "${CONCATENATED_VIDEO_FILE}" -map 0 -c copy -f streamhash -hash md5 "${MIDDLE_OPTIONS_ALL[@]}" "${OUTPUT_STREAMHASH}"
+            "${FFMPEG_PATH}" -nostdin -y -loglevel quiet -report -i "${CONCATENATED_VIDEO_FILE}" "${MAP_OPTIONS[@]}" -c copy -f streamhash -hash md5 "${MIDDLE_OPTIONS_ALL[@]}" "${OUTPUT_STREAMHASH}"
             if [[ $(cat "${STREAMHASH}") != $(cat "${OUTPUT_STREAMHASH}") ]] ; then
                 _report -r "Concatenation process was not lossless! Review final merged file at ${CONCATENATED_VIDEO_FILE}"
                 _write_package_log "POSSIBLE_ERROR_REVIEW" "Concatenation process was not lossless based on bitstream md5s"
