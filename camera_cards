@@ -29,7 +29,7 @@ _generate_metadata(){
         FFPROBE_OUTPUT="${METADATA_REPORTS_DIR}/${FN}_ffprobe.xml"
         mediaconch -mi -ft "${FILE}" >> "${MEDIAINFO_OUTPUT}"
         exiftool "${FILE}" >> "${EXIFTOOL_OUTPUT}"
-        ffprobe -v 0 "${FILE}" -show_format -show_streams -show_data -show_error -show_versions -show_chapters -noprivate -of xml="q=1:x=1" > "${FFPROBE_OUTPUT}"
+        "${FFPROBE_PATH}" -v 0 "${FILE}" -show_format -show_streams -show_data -show_error -show_versions -show_chapters -noprivate -of xml="q=1:x=1" > "${FFPROBE_OUTPUT}"
         if [[ ! -s "${MEDIAINFO_OUTPUT}" ]] || [[ ! -s "${EXIFTOOL_OUTPUT}" ]] || [[ ! -s "${FFPROBE_OUTPUT}" ]] ; then
             _report -r "Metadata generation process created one or more blank files. Input files may be empty. Review metadata output at ${METADATA_REPORTS_DIR}."
             _write_package_log "POSSIBLE_ERROR_REVIEW" "Metadata generation process created one or more blank files"
@@ -206,8 +206,8 @@ _read_inventory(){
 _make_inventory(){
     _catalog_video(){
         FILE="${1}"
-        IFS="," read -r Z DURATION COMPANY_NAME PRODUCT_NAME MOD_TS TC < <(ffprobe -sexagesimal -v 0 "${FILE}" -show_entries format=duration:format_tags=company_name,product_name,modification_date,timecode -of csv)
-        IFS="," read -r Z AUDIO_CODEC AUDIO_SAMPLE_FMT < <(ffprobe -sexagesimal -v 0 "${FILE}" -select_streams a:0 -show_entries stream=codec_name,sample_fmt -of csv | grep "^stream,")
+        IFS="," read -r Z DURATION COMPANY_NAME PRODUCT_NAME MOD_TS TC < <("${FFPROBE_PATH}" -sexagesimal -v 0 "${FILE}" -show_entries format=duration:format_tags=company_name,product_name,modification_date,timecode -of csv)
+        IFS="," read -r Z AUDIO_CODEC AUDIO_SAMPLE_FMT < <("${FFPROBE_PATH}" -sexagesimal -v 0 "${FILE}" -select_streams a:0 -show_entries stream=codec_name,sample_fmt -of csv | grep "^stream,")
         echo "${CARD_NUM},${CAMERA_CARD_TYPE},${VIDEO_NUM},${FILE_NUM},,video,${DURATION},${COMPANY_NAME},${PRODUCT_NAME},${MOD_TS},${TC},${FILE},${AUDIO_CODEC},${AUDIO_SAMPLE_FMT}" >> "${FILE_INVENTORY}"
     }
     _lookup_associated_video_file(){
@@ -494,16 +494,21 @@ done
 FILE_INVENTORY="$(_maketemp).csv"
 TEMP_CONCATLIST="$(_maketemp).ffconcat"
 
+# determine FFMPEG_PATH
+if [[ -z "${FFMPEG_PATH}" ]] ; then
+    FFMPEG_PATH="$(which ffmpeg)"
+fi
+# determine FFPROBE_PATH
+if [[ -z "${FFPROBE_PATH}" ]] ; then
+    FFPROBE_PATH="$(which ffprobe)"
+fi
+
 _make_inventory
 _print_table
 if [[ "${REPORT_ONLY}" = "Y" ]] ; then
     exit 0
 fi
 
-# determine FFMPEG_PATH
-if [[ -z "${FFMPEG_PATH}" ]] ; then
-    FFMPEG_PATH="$(which ffmpeg)"
-fi
 # ask for MEDIAID if it wasn't supplied
 if [[ -z "${MEDIAID}" ]] ; then
     _report -b -n "Enter a unique package name or 'q' to quit: "
@@ -610,7 +615,7 @@ if [[ "${AIP}" == "YES" ]] ; then
         HEADER_SIZE="8540x48" # in HxW format
         TILE_SIZE="8540:480"  # in H:W format
         FIRST_FILE_ESC="$(echo "${FIRST_FILE}" | sed "s/'/,/g")"
-        INFO_CARD="$(ffprobe -v 0 "${FIRST_FILE}" -show_entries format_tags=company_name,product_name,product_uid -of default=nk=1:nw=1 | xargs | sed 's|:|\\\:|g')"
+        INFO_CARD="$("${FFPROBE_PATH}" -v 0 "${FIRST_FILE}" -show_entries format_tags=company_name,product_name,product_uid -of default=nk=1:nw=1 | xargs | sed 's|:|\\\:|g')"
         HEADER_FILTER="color=color=black:s=${HEADER_SIZE},drawtext=x=2:y=2:text='Path\\: $(dirname "${FIRST_FILE_ESC}") -- ${INFO_CARD}':fontcolor=white:fontsize=36:x=2:y=2[header];"
     fi
     while read INVENTORY_ROW ; do
@@ -628,7 +633,7 @@ if [[ "${AIP}" == "YES" ]] ; then
             fi
         fi
         if [[ -z "${CLIP_SELECTION}" || "$(_check_if_in_list "${SEG_NUMBER}" "${CLIP_SELECTION}")" == "y" ]] ; then
-            ANY_UNKNOWN_ENCODINGS="$(ffprobe -v 0 "${FILE_NAME}" -show_streams | grep -c codec_name=unknown)"
+            ANY_UNKNOWN_ENCODINGS="$("${FFPROBE_PATH}" -v 0 "${FILE_NAME}" -show_streams | grep -c codec_name=unknown)"
             if [[ "${ANY_UNKNOWN_ENCODINGS}" != "0" && "${UNKNOWN_ENCODINGS_FOUND}" != true ]] ; then
                 UNKNOWN_ENCODINGS_FOUND=true
                 MIDDLE_OPTIONS_ALL=(-ignore_unknown)
@@ -648,8 +653,8 @@ if [[ "${AIP}" == "YES" ]] ; then
             unset INPUTCLIP4IMAGEFILTER
             IMAGECOUNT=10
             IMAGENUMBER_PER_FILE=1
-            DURATION=$(ffprobe 2>/dev/null "${FILE_NAME}" -show_format | grep duration | cut -d= -f2)
-            INFO_FILE="$(ffprobe -v 0 "${FILE_NAME}" -show_entries format_tags=modification_date,timecode -of default=nk=1:nw=1 | xargs | sed 's|:|\\\:|g')"
+            DURATION=$("${FFPROBE_PATH}" 2>/dev/null "${FILE_NAME}" -show_format | grep duration | cut -d= -f2)
+            INFO_FILE="$("${FFPROBE_PATH}" -v 0 "${FILE_NAME}" -show_entries format_tags=modification_date,timecode -of default=nk=1:nw=1 | xargs | sed 's|:|\\\:|g')"
             DURATION_ALT="$(_smmm_to_hhmmssff "${DURATION}")"
             DURATION_ALT2="$(echo "$DURATION_ALT" | sed 's|:|\\\:|g')"
             DURATION_TALLY_ALT2="$(_smmm_to_hhmmssff "${DURATION_TALLY}" | sed 's|:|\\\:|g')"
@@ -725,8 +730,8 @@ if [[ "${AIP}" == "YES" ]] ; then
 
         # decode error summary
         FIRST_VIDEO_FILE="$(_read_inventory -f ",video," "FILE_NAME" | head -n 1)"
-        VIDEO_FORMAT="$(ffprobe -v 0 -i "${FIRST_VIDEO_FILE}" -show_entries format=format_name -of default=nw=1:nk=1)"
-        VIDEO_ENCODING="$(ffprobe -v 0 -i "${FIRST_VIDEO_FILE}" -select_streams v:0 -show_entries stream=codec_name -of default=nw=1:nk=1 | head -n 1)"
+        VIDEO_FORMAT="$("${FFPROBE_PATH}" -v 0 -i "${FIRST_VIDEO_FILE}" -show_entries format=format_name -of default=nw=1:nk=1)"
+        VIDEO_ENCODING="$("${FFPROBE_PATH}" -v 0 -i "${FIRST_VIDEO_FILE}" -select_streams v:0 -show_entries stream=codec_name -of default=nw=1:nk=1 | head -n 1)"
         DEMUXER_ERROR_SUMMARY="$(grep -B 1 "^\[${VIDEO_FORMAT} @" "${DECODER_LOG}" | grep "^\[${VIDEO_FORMAT} @\|pts_time")"
         DECODER_ERROR_SUMMARY="$(grep -B 1 "^\[${VIDEO_ENCODING} @" "${DECODER_LOG}" | grep "^\[${VIDEO_ENCODING} @\|pts_time")"
         if [[ -n "${DECODER_ERROR_SUMMARY}" ]] ; then
