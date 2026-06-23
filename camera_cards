@@ -240,11 +240,11 @@ _make_inventory(){
                 FIND_OPTS+=(-maxdepth 1)
             fi
             while read FILE ; do
-                if [[ -n $(mediainfo --Inform="General;%VideoCount%" "${FILE}") ]] ; then
+                if [[ $("${FFPROBE_PATH}" -v quiet -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 "${FILE}" 2>/dev/null) == "video" ]] ; then
                     IFS="," read -r Z DURATION COMPANY_NAME PRODUCT_NAME MOD_TS TC < <(ffprobe -sexagesimal -v 0 "${FILE}" -show_entries format=duration:format_tags=company_name,product_name,modification_date,timecode -of csv)
                     echo "${CARD_NUM},${CAMERA_CARD_TYPE},${VIDEO_NUM},${FILE_NUM},,video,${DURATION},${COMPANY_NAME},${PRODUCT_NAME},${MOD_TS},${TC},${FILE},${AUDIO_CODEC},${AUDIO_SAMPLE_FMT}" >> "${FILE_INVENTORY}"
                     ((VIDEO_NUM++))
-                elif [[ -n $(mediainfo --Inform="General;%AudioCount%" "${FILE}") ]] ; then
+                elif [[ $("${FFPROBE_PATH}" -v quiet -select_streams a:0 -show_entries stream=codec_type -of csv=p=0 "${FILE}" 2>/dev/null) == "audio" ]] ; then
                     echo "${CARD_NUM},${CAMERA_CARD_TYPE},0,${FILE_NUM},,audio,,,,,,${FILE},${AUDIO_CODEC},${AUDIO_SAMPLE_FMT}" >> "${FILE_INVENTORY}"
                 else
                     echo "${CARD_NUM},${CAMERA_CARD_TYPE},0,${FILE_NUM},$(_lookup_associated_video_file),metadata,,,,,,${FILE},," >> "${FILE_INVENTORY}"
@@ -404,7 +404,7 @@ _identify_card_type(){
         # read all the files in the package and note the extensions of video files
         EXTENSION_REVIEW=()
         while read FILE ; do
-            if [[ -n $(mediainfo --Inform="General;%VideoCount%" "${FILE}") ]] ; then
+            if [[ $("${FFPROBE_PATH}" -v quiet -select_streams v:0 -show_entries stream=codec_type -of csv=p=0 "${FILE}" 2>/dev/null) == "video" ]] ; then
                 EXTENSION_REVIEW+=("${FILE##*.}")
             fi
         done < <(find "${CARD}" -type f | sort)
